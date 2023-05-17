@@ -1,0 +1,14 @@
+Package: net-snmp
+Version: __version__
+Section: net
+Priority: optional
+Architecture: __arch__
+Installed-Size: __size__
+Depends: __deplibs__
+Recommends:
+Suggests:
+Maintainer: Michael D Labriola <veggiemike@sourceruckus.org>
+Homepage: http://www.net-snmp.org/
+Description: SNMP application suite
+  Net-SNMP is a suite of applications used to implement SNMP v1, SNMP
+  v2c and SNMP v3 using both IPv4 and IPv6.

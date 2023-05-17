@@ -499,3 +499,66 @@ distdependdirs:
 	installbin installsbin installsubdirs \
 	all subdirs standardall objs features \
 	depend nosysdepend distdepend dependdirs nosysdependdirs distdependdirs
+
+
+# i know this isn't the right way to do this... but it's how i've been
+# occasionally making .pkg files to install, now documented/automated
+# to make life easier.
+#
+# NOTE: this package doesn't use automake, so we have to set the name
+#       and use slightly different variables than normal.
+#
+DEBREV=1
+DEBVERSION=$(VERSION)-$(DEBREV)
+DEBNAME=net-snmp-$(DEBVERSION)
+abs_top_builddir:=$(abspath $(top_builddir))
+DEBFILE=$(abs_top_builddir)/$(DEBNAME).deb
+DPKGDIR=$(abs_top_builddir)/$(DEBNAME)
+DEBDIR=$(DPKGDIR)/DEBIAN
+DEBCTRL=$(DEBDIR)/control
+DEBSIZE=$(DEBDIR)/.size
+DEBARCH=$(DEBDIR)/.arch
+DEBDEPS=$(DEBDIR)/.deps
+DEBCTRL_DEPS=$(DEBSIZE) $(DEBARCH) $(DEBDEPS)
+MKDIR_P=mkdir -p
+
+.PHONY: dpkg
+dpkg: $(DEBFILE)
+
+$(DEBFILE): $(DEBCTRL)
+	rm -f $(DEBCTRL_DEPS)
+	dpkg-deb --build --root-owner-group $(DPKGDIR)
+	rm -rf $(DPKGDIR)
+
+$(DPKGDIR):
+	./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+	  --with-default-snmp-version=3 \
+	  --with-sys-contact="veggiemike@sourceruckus.org" \
+	  --with-sys-location=Unknown \
+	  --with-logfile=/var/log/snmpd.log \
+	  --with-persistent-directory=/var/net-snmp
+	$(MAKE) clean
+	$(MAKE) all
+	$(MAKE) DESTDIR=$@ install
+
+$(DEBDIR): $(DPKGDIR)
+	$(MKDIR_P) $@
+
+$(DEBSIZE): $(DEBDIR)
+	du -hs $(DPKGDIR) | awk '{print $$1}' > $@
+
+$(DEBARCH): $(DEBDIR)
+	dpkg-architecture --query DEB_HOST_ARCH > $@
+
+$(DEBDEPS): $(DEBDIR)
+	$(srcdir)/debian/get_deps $(DPKGDIR) > $(DEBDIR)/.tmp
+	awk -F": " '/^pkgs:/ {print $$2}' $(DEBDIR)/.tmp > $@
+	rm -f $(DEBDIR)/.tmp
+
+$(DEBCTRL): $(DEBCTRL_DEPS)
+	cat $(srcdir)/debian/control | sed \
+	    -e 's|__version__|$(DEBVERSION)|' \
+	    -e "s|__size__|$$(cat $(DEBDIR)/.size)|" \
+	    -e "s|__arch__|$$(cat $(DEBDIR)/.arch)|" \
+	    -e "s|__deplibs__|$$(cat $(DEBDIR)/.deps)|" \
+	    > $@
